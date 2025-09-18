@@ -1,10 +1,15 @@
 // src/app/api/check/route.ts
 import { NextResponse } from 'next/server';
 
+// Define a type for the technology object to avoid using 'any'
+type Technology = {
+  Name: string;
+  Tag: string;
+};
+
 export async function POST(request: Request) {
   const { url } = await request.json();
   
-  // Read both of your secret API keys
   const googleApiKey = process.env.PAGESPEED_API_KEY;
   const builtWithApiKey = process.env.BUILTWITH_API_KEY;
 
@@ -16,13 +21,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    // We'll now make three API calls at the same time
     const [mobileResponse, desktopResponse, builtWithResponse] = await Promise.all([
-      // Call 1: Google Mobile
       fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=MOBILE&key=${googleApiKey}&category=PERFORMANCE&category=SEO&category=ACCESSIBILITY`),
-      // Call 2: Google Desktop
       fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=DESKTOP&key=${googleApiKey}&category=PERFORMANCE&category=SEO&category=ACCESSIBILITY`),
-      // Call 3: BuiltWith Technology Lookup
       fetch(`https://api.builtwith.com/v21/api.json?KEY=${builtWithApiKey}&LOOKUP=${encodeURIComponent(url)}`)
     ]);
 
@@ -31,7 +32,6 @@ export async function POST(request: Request) {
         throw new Error('Failed to fetch data from one of the APIs.');
     }
 
-    // Process the data from all three calls
     const mobileData = await mobileResponse.json();
     const desktopData = await desktopResponse.json();
     const builtWithData = await builtWithResponse.json();
@@ -50,21 +50,17 @@ export async function POST(request: Request) {
       finalUrl: mobileData.id,
     };
 
-    // --- NEW: Logic to find the website's platform ---
     let detectedPlatform = 'Unknown';
-    // Safely check the structure of the BuiltWith response
     if (builtWithData.Results && builtWithData.Results.length > 0 && builtWithData.Results[0].Result?.Paths) {
         for (const path of builtWithData.Results[0].Result.Paths) {
-            // Find the first technology tagged as a 'cms'
-            const cms = path.Technologies.find((tech: any) => tech.Tag === 'cms');
+            const cms = path.Technologies.find((tech: Technology) => tech.Tag === 'cms');
             if (cms) {
                 detectedPlatform = cms.Name;
-                break; // Stop as soon as we find the main CMS
+                break; 
             }
         }
     }
 
-    // Add the detected platform to our final results object
     return NextResponse.json({ ...results, platform: detectedPlatform });
 
   } catch (error) {
