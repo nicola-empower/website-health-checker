@@ -7,7 +7,7 @@ import { WrenchScrewdriverIcon, ExclamationTriangleIcon } from '@heroicons/react
 
 // --- TYPE DEFINITIONS ---
 type Scores = { performance: number; seo: number; accessibility: number };
-type AnalysisResults = { mobile: Scores; desktop: Scores; finalUrl: string; }; // Platform is no longer needed from the API
+type AnalysisResults = { mobile: Scores; desktop: Scores; finalUrl: string; };
 type Service = { name: string; price: number | 'Custom Quote'; details: string[] };
 type Severity = { tier: string, problem: string, basePrice: number, color: string, isRed: boolean, isAmber: boolean, isGreen: boolean };
 
@@ -21,11 +21,8 @@ const ScoreCircle = ({ score }: { score: number }) => {
   return (<div className={`text-5xl font-bold ${getScoreColor(score)}`}>{Math.round(score)}</div>);
 };
 
-// --- PRICE FORMATTING HELPER ---
 const formatPrice = (price: number | 'Custom Quote') => {
-  if (price === 'Custom Quote') {
-    return 'Custom Quote';
-  }
+  if (price === 'Custom Quote') return 'Custom Quote';
   return `£${Math.round(price)}`;
 };
 
@@ -36,10 +33,8 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // NEW: State for the user's manual platform choice
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [showActionPlan, setShowActionPlan] = useState(false);
-
   const [siteSize, setSiteSize] = useState('small');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -54,7 +49,6 @@ export default function HomePage() {
   const calculatePrice = (basePrice: number): number | 'Custom Quote' => {
     if (siteSize === 'large') return "Custom Quote";
     const sizeMultiplier = siteSize === 'medium' ? 1.5 : 1;
-    // Price multiplier is now based on the user's selection
     const platformMultiplier = (selectedPlatform === 'WordPress') ? 1 : 0.75;
     return basePrice * sizeMultiplier * platformMultiplier;
   };
@@ -64,19 +58,12 @@ export default function HomePage() {
     setSelectedService(service);
     setIsModalOpen(true);
   };
-  
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    alert('Form submitted! (This is a placeholder)');
-    setIsModalOpen(false);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setResults(null);
     setError('');
-    // Reset the action plan on new submission
     setShowActionPlan(false);
     setSelectedPlatform(''); 
     
@@ -84,7 +71,6 @@ export default function HomePage() {
     const fullUrl = `https://${cleanedUrl}`;
 
     try {
-      // NOTE: We will now use the backend that does NOT call BuiltWith
       const response = await fetch('/api/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -237,7 +223,6 @@ export default function HomePage() {
                       </div>
                       
                       <div className="space-y-8 text-left">
-                        {/* BUNDLE LOGIC */}
                         {showAllRedBundle && allSeveritiesAvailable && (
                             <div className="bg-red-100 border-2 border-red-400 p-6 rounded-lg shadow-lg text-center">
                                 <h3 className="text-2xl font-bold text-red-800">Critical Site Rescue Package</h3>
@@ -271,7 +256,6 @@ export default function HomePage() {
                             </div>
                         )}
 
-                        {/* INDIVIDUAL CARDS LOGIC */}
                         {!showAllRedBundle && !showAllAmberBundle && !showAllGreenBundle && allSeveritiesAvailable &&(
                             <>
                                 {(perfSeverity.isRed || perfSeverity.isAmber) && (
@@ -343,18 +327,27 @@ export default function HomePage() {
           <div className="bg-white rounded-lg shadow-xl p-8 max-w-lg w-full">
             <h2 className="text-2xl font-bold text-slate-800">Request: {selectedService.name}</h2>
             <p className="text-slate-600 mt-2">Price: <span className="font-bold">{formatPrice(selectedService.price)}</span></p>
-            <form onSubmit={handleFormSubmit} className="mt-6 space-y-4">
+            <form action="https://formspree.io/f/movngvvy" method="POST" className="mt-6 space-y-4">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-slate-700">Your Name</label>
-                <input type="text" id="name" name="name" required className="mt-1 block w-full p-2 border border-slate-300 rounded-md shadow-sm"/>
+                  <label htmlFor="name" className="block text-sm font-medium text-slate-700">Your Name</label>
+                  <input type="text" id="name" name="name" required className="mt-1 block w-full p-2 border border-slate-300 rounded-md shadow-sm"/>
               </div>
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-slate-700">Your Email</label>
-                <input type="email" id="email" name="email" required className="mt-1 block w-full p-2 border border-slate-300 rounded-md shadow-sm"/>
+                  <label htmlFor="email" className="block text-sm font-medium text-slate-700">Your Email</label>
+                  <input type="email" id="email" name="email" required className="mt-1 block w-full p-2 border border-slate-300 rounded-md shadow-sm"/>
               </div>
+              
+              <input type="hidden" name="service_requested" value={`${selectedService?.name} - ${formatPrice(selectedService?.price || 0)}`} />
+              <input type="hidden" name="website_tested" value={results?.finalUrl} />
+              <input type="hidden" name="platform" value={selectedPlatform} />
+              <input type="hidden" name="site_size" value={siteSize} />
+              <input type="hidden" name="mobile_performance_score" value={Math.round(results?.mobile.performance || 0)} />
+              <input type="hidden" name="mobile_seo_score" value={Math.round(results?.mobile.seo || 0)} />
+              <input type="hidden" name="mobile_accessibility_score" value={Math.round(results?.mobile.accessibility || 0)} />
+              
               <div className="flex justify-end space-x-4 mt-8">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200">Cancel</button>
-                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">Send Request</button>
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200">Cancel</button>
+                  <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">Send Request</button>
               </div>
             </form>
           </div>
