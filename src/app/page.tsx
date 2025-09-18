@@ -61,8 +61,13 @@ export default function HomePage() {
 
       const data: AnalysisResults = await response.json();
       setResults(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      // FIXED: This now handles the error type safely
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unknown error occurred.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -152,9 +157,10 @@ export default function HomePage() {
             {/* Call to Action */}
             <div className="mt-8 text-center p-6 bg-emerald-50 border-2 border-emerald-300 rounded-lg">
                 <h3 className="text-2xl font-bold text-emerald-800">Want to get all scores in the green?</h3>
-                <p className="mt-2 text-emerald-700">That's what I'm here for. I can help you optimise your site for speed, user experience, and search engines.</p>
-                <a href="https://empowervaservices.co.uk/contact-us" target="_blank" rel="noopener noreferrer" className="mt-4 inline-block bg-emerald-500 text-white font-bold py-3 px-8 rounded-md hover:bg-emerald-600 transition">
-                    Let's Talk
+                {/* FIXED: The apostrophes are now correctly escaped */}
+                <p className="mt-2 text-emerald-700">That&apos;s what I&apos;m here for. I can help you optimise your site for speed, user experience, and search engines.</p>
+                <a href="https://your-main-website.com/contact" target="_blank" rel="noopener noreferrer" className="mt-4 inline-block bg-emerald-500 text-white font-bold py-3 px-8 rounded-md hover:bg-emerald-600 transition">
+                    Let&apos;s Talk
                 </a>
             </div>
           </div>
