@@ -1,5 +1,4 @@
 // src/app/api/check/route.ts
-
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -14,7 +13,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    // We are back to fetching both reports at the same time
     const [mobileResponse, desktopResponse] = await Promise.all([
       fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=MOBILE&key=${apiKey}&category=PERFORMANCE&category=SEO&category=ACCESSIBILITY`),
       fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=DESKTOP&key=${apiKey}&category=PERFORMANCE&category=SEO&category=ACCESSIBILITY`)
@@ -34,13 +32,11 @@ export async function POST(request: Request) {
         performance: mobileData.lighthouseResult.categories.performance.score * 100,
         seo: mobileData.lighthouseResult.categories.seo.score * 100,
         accessibility: mobileData.lighthouseResult.categories.accessibility.score * 100,
-        firstContentfulPaint: mobileData.lighthouseResult.audits['first-contentful-paint'].displayValue,
       },
       desktop: {
         performance: desktopData.lighthouseResult.categories.performance.score * 100,
         seo: desktopData.lighthouseResult.categories.seo.score * 100,
         accessibility: desktopData.lighthouseResult.categories.accessibility.score * 100,
-        firstContentfulPaint: desktopData.lighthouseResult.audits['first-contentful-paint'].displayValue,
       },
       finalUrl: mobileData.id,
     };
