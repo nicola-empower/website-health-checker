@@ -214,7 +214,7 @@ export default function HomePage() {
                         <option value="WordPress">WordPress</option>
                         <option value="Squarespace">Squarespace</option>
                         <option value="Wix">Wix</option>
-                        <option value="Other">Other / I'm not sure</option>
+                        <option value="Other">Other / I&apos;m not sure</option>
                       </select>
                       <button 
                         onClick={() => setShowActionPlan(true)} 
