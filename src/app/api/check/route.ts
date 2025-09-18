@@ -1,5 +1,4 @@
 // src/app/api/check/route.ts
-// TEMPORARY TEST CODE to check for timeouts
 
 import { NextResponse } from 'next/server';
 
@@ -15,16 +14,21 @@ export async function POST(request: Request) {
   }
 
   try {
-    // We are ONLY fetching the mobile report to be faster
-    const mobileResponse = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=MOBILE&key=${apiKey}&category=PERFORMANCE&category=SEO&category=ACCESSIBILITY`);
+    // We are back to fetching both reports at the same time
+    const [mobileResponse, desktopResponse] = await Promise.all([
+      fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=MOBILE&key=${apiKey}&category=PERFORMANCE&category=SEO&category=ACCESSIBILITY`),
+      fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=DESKTOP&key=${apiKey}&category=PERFORMANCE&category=SEO&category=ACCESSIBILITY`)
+    ]);
 
-    if (!mobileResponse.ok) {
-        throw new Error('Failed to fetch data from PageSpeed Insights API');
+    if (!mobileResponse.ok || !desktopResponse.ok) {
+        const errorText = await mobileResponse.text();
+        console.error("PageSpeed API Error:", errorText);
+        throw new Error('Failed to fetch data from PageSpeed Insights API. The URL may be invalid or the API is temporarily unavailable.');
     }
 
     const mobileData = await mobileResponse.json();
-    
-    // We'll send back a simplified result for this test
+    const desktopData = await desktopResponse.json();
+
     const results = {
       mobile: {
         performance: mobileData.lighthouseResult.categories.performance.score * 100,
@@ -32,12 +36,11 @@ export async function POST(request: Request) {
         accessibility: mobileData.lighthouseResult.categories.accessibility.score * 100,
         firstContentfulPaint: mobileData.lighthouseResult.audits['first-contentful-paint'].displayValue,
       },
-      // Desktop data is faked to prevent the frontend from breaking
       desktop: {
-        performance: 0,
-        seo: 0,
-        accessibility: 0,
-        firstContentfulPaint: "N/A",
+        performance: desktopData.lighthouseResult.categories.performance.score * 100,
+        seo: desktopData.lighthouseResult.categories.seo.score * 100,
+        accessibility: desktopData.lighthouseResult.categories.accessibility.score * 100,
+        firstContentfulPaint: desktopData.lighthouseResult.audits['first-contentful-paint'].displayValue,
       },
       finalUrl: mobileData.id,
     };
@@ -46,6 +49,6 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: 'An unexpected error occurred during the test.' }, { status: 500 });
+    return NextResponse.json({ error: 'An unexpected error occurred. This can happen if the website takes too long to respond.' }, { status: 500 });
   }
 }

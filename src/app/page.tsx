@@ -19,7 +19,6 @@ const ScoreCircle = ({ score }: { score: number }) => {
   return (<div className={`text-5xl font-bold ${getScoreColor(score)}`}>{Math.round(score)}</div>);
 };
 
-
 export default function HomePage() {
   const [url, setUrl] = useState('');
   const [results, setResults] = useState<AnalysisResults | null>(null);
@@ -31,7 +30,7 @@ export default function HomePage() {
     setIsLoading(true);
     setResults(null);
     setError('');
-    const fullUrl = `https://${url}`;
+    const fullUrl = `https://${url.trim()}`;
 
     try {
       const response = await fetch('/api/check', {
@@ -60,7 +59,7 @@ export default function HomePage() {
     <main className="min-h-screen bg-slate-50 flex flex-col items-center p-4 sm:p-8">
       <div className="w-full max-w-4xl mx-auto">
         <div className="mb-8 text-center">
-            <a href="https://empowervaservices.co.uk" target="_blank" rel="noopener noreferrer" className="inline-block">
+            <a href="https://empowervaservices.co.uk" target="_blank" rel="noopener noreferrer" className="inline-block transition-transform hover:scale-105">
                 <Image 
                     src="/logo.png"
                     alt="Empower Virtual Assistant Services Logo"
@@ -87,7 +86,8 @@ export default function HomePage() {
                     onChange={(e) => setUrl(e.target.value)}
                     placeholder="yourwebsite.co.uk"
                     required
-                    className="flex-grow p-3 border border-gray-300 rounded-none rounded-r-md focus:ring-2 focus:ring-[#8c3aaa] focus:border-[#8c3aaa] transition"
+                    // FIXED: Added text-gray-900 for readable input
+                    className="flex-grow p-3 border border-gray-300 text-gray-900 rounded-none rounded-r-md focus:ring-2 focus:ring-[#8c3aaa] focus:border-[#8c3aaa] transition"
                 />
             </div>
           <button
@@ -100,42 +100,55 @@ export default function HomePage() {
         </form>
 
         {error && <div className="mt-6 p-4 bg-red-100 text-red-700 rounded-md">{error}</div>}
-        {isLoading && <div className="mt-8 text-center text-slate-600">Checking your site... this might take a moment!</div>}
+        {isLoading && <div className="mt-8 text-center text-slate-600">Analysing your site... this can take up to 30 seconds!</div>}
 
-        {/* === UPDATED RESULTS SECTION FOR THE TEST === */}
         {results && (
-          <div className="mt-10 bg-white p-6 sm:p-8 rounded-lg shadow-lg">
+          <div className="mt-10 bg-white p-6 sm:p-8 rounded-lg shadow-xl">
             <h2 className="text-2xl font-bold text-slate-800">
-              Report for: <span className="text-purple-600">{results.finalUrl}</span>
+              Report for: <a href={results.finalUrl} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">{results.finalUrl}</a>
             </h2>
-            <p className="text-center text-emerald-700 font-semibold my-4">
-              Test successful! Mobile data loaded correctly.
-            </p>
             
-            <div className="mt-6 flex justify-center">
-                {/* Mobile Results Only */}
-                <div className="bg-slate-50 p-6 rounded-lg w-full max-w-sm">
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Mobile Results */}
+                <div className="bg-slate-50 p-6 rounded-lg">
                     <h3 className="text-xl font-bold text-center text-slate-700">📱 Mobile</h3>
                     <div className="mt-4 grid grid-cols-3 gap-4 text-center">
-                        <div>
-                            <ScoreCircle score={results.mobile.performance} />
-                            <p className="text-sm text-slate-500 mt-2">Performance</p>
-                        </div>
-                        <div>
-                            <ScoreCircle score={results.mobile.seo} />
-                            <p className="text-sm text-slate-500 mt-2">SEO</p>
-                        </div>
-                        <div>
-                           <ScoreCircle score={results.mobile.accessibility} />
-                           <p className="text-sm text-slate-500 mt-2">Accessibility</p>
-                        </div>
+                        <div><ScoreCircle score={results.mobile.performance} /><p className="text-sm text-slate-500 mt-2">Performance</p></div>
+                        <div><ScoreCircle score={results.mobile.seo} /><p className="text-sm text-slate-500 mt-2">SEO</p></div>
+                        <div><ScoreCircle score={results.mobile.accessibility} /><p className="text-sm text-slate-500 mt-2">Accessibility</p></div>
                     </div>
                     <p className="text-center mt-4 text-sm text-slate-600">First Contentful Paint: <strong>{results.mobile.firstContentfulPaint}</strong></p>
                 </div>
+
+                {/* Desktop Results */}
+                 <div className="bg-slate-50 p-6 rounded-lg">
+                    <h3 className="text-xl font-bold text-center text-slate-700">💻 Desktop</h3>
+                    <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+                        <div><ScoreCircle score={results.desktop.performance} /><p className="text-sm text-slate-500 mt-2">Performance</p></div>
+                        <div><ScoreCircle score={results.desktop.seo} /><p className="text-sm text-slate-500 mt-2">SEO</p></div>
+                        <div><ScoreCircle score={results.desktop.accessibility} /><p className="text-sm text-slate-500 mt-2">Accessibility</p></div>
+                    </div>
+                     <p className="text-center mt-4 text-sm text-slate-600">First Contentful Paint: <strong>{results.desktop.firstContentfulPaint}</strong></p>
+                </div>
+            </div>
+
+            {/* === NEW: STRATEGIC CALL TO ACTION SECTION === */}
+            <div className="mt-8 text-center p-6 bg-emerald-50 border-2 border-emerald-300 rounded-lg">
+                <h3 className="text-2xl font-bold text-emerald-800">Turn these numbers into results.</h3>
+                <p className="mt-2 text-emerald-700 max-w-2xl mx-auto">A free tool gives you data. I provide the expertise to turn that data into a faster site, better rankings, and more customers. The scores above are just the beginning.</p>
+                <a href="https://empowervaservices.co.uk/contact" target="_blank" rel="noopener noreferrer" className="mt-4 inline-block bg-emerald-500 text-white font-bold py-3 px-8 rounded-md hover:bg-emerald-600 transition">
+                    Book Your Free 15-Minute Results Review
+                </a>
             </div>
           </div>
         )}
       </div>
+
+      {/* === NEW: FOOTER SECTION === */}
+      <footer className="w-full max-w-4xl mx-auto mt-12 pt-8 border-t text-center text-sm text-slate-500">
+        <p>&copy; {new Date().getFullYear()} Empower Virtual Assistant Services. All rights reserved.</p>
+        <p>A custom tool built by Nicola Berry.</p>
+      </footer>
     </main>
   );
 }
