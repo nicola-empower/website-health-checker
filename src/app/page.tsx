@@ -3,8 +3,8 @@
 
 import { useState, Fragment } from 'react';
 import Image from 'next/image';
-// NEW: Importing icons from the Heroicons library
-import { WrenchScrewdriverIcon, ExclamationTriangleIcon, BeakerIcon } from '@heroicons/react/24/outline';
+// CORRECTED: Importing only the icons that are actually used
+import { WrenchScrewdriverIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 // Type definitions
 type Scores = { performance: number; seo: number; accessibility: number };
@@ -32,12 +32,14 @@ export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   
-  const [platform, setPlatform] = useState('WordPress'); 
+  // CORRECTED: Removed unused 'setPlatform' to clear the warning
+  const [platform] = useState('WordPress'); 
 
   // Dynamic Pricing and Content Logic
   const getSeverity = (score: number): {tier: string, problem: string, basePrice: number} => {
-    if (score < 50) return { tier: 'Red Zone Rescue', problem: 'Critical issues found that are likely harming your site’s performance and user experience.', basePrice: 300 };
-    if (score < 90) return { tier: 'Amber Zone Audit', problem: 'Your site’s foundation is good, but is missing key optimisations.', basePrice: 150 };
+    // CORRECTED: Escaped the apostrophe in 'site's'
+    if (score < 50) return { tier: 'Red Zone Rescue', problem: 'Critical issues found that are likely harming your site&apos;s performance and user experience.', basePrice: 300 };
+    if (score < 90) return { tier: 'Amber Zone Audit', problem: 'Your site&apos;s foundation is good, but is missing key optimisations.', basePrice: 150 };
     return { tier: 'Green Zone Polish', problem: 'Your site is in great shape! This tune-up will fix the final few issues to achieve a near-perfect score.', basePrice: 75 };
   };
 
