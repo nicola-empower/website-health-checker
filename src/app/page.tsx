@@ -5,13 +5,13 @@ import { useState, Fragment } from 'react';
 import Image from 'next/image';
 import { WrenchScrewdriverIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
-// Type definitions
+// --- TYPE DEFINITIONS ---
 type Scores = { performance: number; seo: number; accessibility: number };
 type AnalysisResults = { mobile: Scores; desktop: Scores; finalUrl: string; platform: string };
-type Service = { name: string; price: number | string; details: string[] };
-type Severity = { tier: string, problem: string, basePrice: number, color: string };
+type Service = { name: string; price: number | 'Custom Quote'; details: string[] };
+type Severity = { tier: string, problem: string, basePrice: number, color: string, isRed: boolean, isAmber: boolean, isGreen: boolean };
 
-// Helper Components
+// --- HELPER COMPONENTS ---
 const ScoreCircle = ({ score }: { score: number }) => {
   const getScoreColor = (value: number) => {
     if (value >= 90) return 'text-emerald-500';
@@ -21,7 +21,15 @@ const ScoreCircle = ({ score }: { score: number }) => {
   return (<div className={`text-5xl font-bold ${getScoreColor(score)}`}>{Math.round(score)}</div>);
 };
 
-// Main Page Component
+// --- PRICE FORMATTING HELPER ---
+const formatPrice = (price: number | 'Custom Quote') => {
+  if (price === 'Custom Quote') {
+    return 'Custom Quote';
+  }
+  return `£${Math.round(price)}`;
+};
+
+// --- MAIN PAGE COMPONENT ---
 export default function HomePage() {
   const [url, setUrl] = useState('');
   const [results, setResults] = useState<AnalysisResults | null>(null);
@@ -32,26 +40,22 @@ export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
 
-  // Dynamic Pricing and Content Logic
+  // --- LOGIC & CALCULATIONS ---
   const getSeverity = (score: number): Severity => {
-    if (score < 50) return { tier: 'Red Zone Rescue', problem: 'Critical issues found that are likely harming your site&apos;s performance and user experience.', basePrice: 300, color: 'text-red-500' };
-    if (score < 90) return { tier: 'Amber Zone Audit', problem: 'Your site&apos;s foundation is good, but is missing key optimisations.', basePrice: 150, color: 'text-yellow-500' };
-    return { tier: 'Green Zone Polish', problem: 'Your site is in great shape! This tune-up will fix the final few issues to achieve a near-perfect score.', basePrice: 75, color: 'text-emerald-500' };
+    if (score < 50) return { tier: 'Red Zone Rescue', problem: 'Your score indicates critical issues that are actively harming your site.', basePrice: 300, color: 'text-red-500', isRed: true, isAmber: false, isGreen: false };
+    if (score < 90) return { tier: 'Amber Zone Audit', problem: 'Your score is in the amber zone, indicating key areas for improvement.', basePrice: 150, color: 'text-yellow-500', isRed: false, isAmber: true, isGreen: false };
+    return { tier: 'Green Zone Polish', problem: 'Congratulations! Your site is in great shape. This optional tune-up is for those who want to go from great to perfect.', basePrice: 75, color: 'text-emerald-500', isRed: false, isAmber: false, isGreen: true };
   };
 
-  const calculatePrice = (basePrice: number) => {
+  // ✅ FIX 1: Price calculation now consistently returns a number or the specific string 'Custom Quote'.
+  const calculatePrice = (basePrice: number): number | 'Custom Quote' => {
     if (siteSize === 'large') return "Custom Quote";
     const sizeMultiplier = siteSize === 'medium' ? 1.5 : 1;
     const platformMultiplier = (results?.platform === 'WordPress') ? 1 : 0.75;
-    return `£${basePrice * sizeMultiplier * platformMultiplier}`;
-  };
-
-  const services = {
-    seo: { ...getSeverity(results?.mobile.seo ?? 100), details: ['Full SEO Audit', 'Fix All Identified Errors', 'Implement Best Practices', 'Google Search Console Setup'] },
-    accessibility: { ...getSeverity(results?.mobile.accessibility ?? 100), details: ['Full Accessibility Audit', 'Fix Contrast & Alt Text', 'Ensure Form/Button Labels', 'WCAG Compliance Check'] },
+    return basePrice * sizeMultiplier * platformMultiplier;
   };
   
-  // Handlers
+  // --- HANDLERS ---
   const handleOpenModal = (service: Service) => {
     setSelectedService(service);
     setIsModalOpen(true);
@@ -68,7 +72,10 @@ export default function HomePage() {
     setIsLoading(true);
     setResults(null);
     setError('');
-    const fullUrl = `https://${url.trim()}`;
+    
+    // ✅ FIX 2: More robust URL cleaning. It removes any existing http/https protocol before adding it.
+    const cleanedUrl = url.trim().replace(/^(https?:\/\/)?/, '');
+    const fullUrl = `https://${cleanedUrl}`;
 
     try {
       const response = await fetch('/api/check', {
@@ -93,10 +100,32 @@ export default function HomePage() {
     }
   };
 
+  // --- DERIVED STATE & HELPER VARIABLES ---
+  const perfSeverity = results ? getSeverity(results.mobile.performance) : null;
+  const seoSeverity = results ? getSeverity(results.mobile.seo) : null;
+  const accessibilitySeverity = results ? getSeverity(results.mobile.accessibility) : null;
+
+  const showAllRedBundle = perfSeverity?.isRed && seoSeverity?.isRed && accessibilitySeverity?.isRed;
+  const showAllAmberBundle = perfSeverity?.isAmber && seoSeverity?.isAmber && accessibilitySeverity?.isAmber;
+  const showAllGreenBundle = perfSeverity?.isGreen && seoSeverity?.isGreen && accessibilitySeverity?.isGreen;
+  
+  // ✅ FIX 3: Calculate total base price *before* applying multipliers to avoid errors.
+  const allSeveritiesAvailable = perfSeverity && seoSeverity && accessibilitySeverity;
+  
+  const totalRedBasePrice = allSeveritiesAvailable ? (perfSeverity.basePrice + seoSeverity.basePrice + accessibilitySeverity.basePrice) : 0;
+  const totalRedPrice = calculatePrice(totalRedBasePrice);
+  const discountedRedPrice = typeof totalRedPrice === 'number' ? totalRedPrice * 0.85 : 'Custom Quote';
+
+  const totalAmberBasePrice = allSeveritiesAvailable ? (perfSeverity.basePrice + seoSeverity.basePrice + accessibilitySeverity.basePrice) : 0;
+  const totalAmberPrice = calculatePrice(totalAmberBasePrice);
+  const discountedAmberPrice = typeof totalAmberPrice === 'number' ? totalAmberPrice * 0.90 : 'Custom Quote';
+
+  // --- RENDER ---
   return (
     <Fragment>
       <main className="min-h-screen bg-slate-50 flex flex-col items-center p-4 sm:p-8">
         <div className="w-full max-w-4xl mx-auto">
+            {/* ... Header and Form (no changes here) ... */}
             <div className="mb-8 text-center">
                 <a href="https://empowervaservices.co.uk" target="_blank" rel="noopener noreferrer" className="inline-block transition-transform hover:scale-105">
                     <Image 
@@ -142,6 +171,7 @@ export default function HomePage() {
 
             {results && (
               <div className="mt-10">
+                {/* ... Results Display (no changes here) ... */}
                 <div className="bg-white p-6 sm:p-8 rounded-lg shadow-xl border">
                     <h2 className="text-2xl font-bold text-slate-800 text-center">Report for: <a href={results.finalUrl} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">{results.finalUrl}</a></h2>
                     <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -178,54 +208,91 @@ export default function HomePage() {
                   </div>
 
                   <div className="space-y-8">
-                    {(results.mobile.performance < 90) && (
-                      <>
-                        {results.platform === 'WordPress' && (
-                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
-                              <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${getSeverity(results.mobile.performance).color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">Your WordPress site has a low performance score, likely due to common issues with images or caching.</p></div>
-                              <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside"><li>Install & Configure Caching Plugin</li><li>OR Bulk Optimise All Images</li></ul></div>
-                              <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
-                                <h3 className="font-bold text-lg text-slate-800">WordPress Quick Win</h3>
-                                <div className="text-3xl font-bold text-purple-600 my-4">£50</div>
-                                <button onClick={() => handleOpenModal({ name: 'WordPress Quick Win', price: '£50', details: ['Install Caching OR Image Plugin'] })} className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition">Request This Service</button>
-                              </div>
-                           </div>
-                        )}
-                        {(results.platform === 'Wix' || results.platform === 'Squarespace' || (results.platform === 'Unknown' && results.mobile.performance < 90)) && (
-                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
-                              <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${getSeverity(results.mobile.performance).color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">Your {results.platform} site has a low performance score. Best practices for this platform can still make a big difference.</p></div>
-                              <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside"><li>Manual Image Compression Review</li><li>Slow Widget/App Identification</li><li>Best Practice Action Report</li></ul></div>
-                              <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
-                                <h3 className="font-bold text-lg text-slate-800">Platform Performance Audit</h3>
-                                <div className="text-3xl font-bold text-purple-600 my-4">£150</div>
-                                <button onClick={() => handleOpenModal({ name: 'Platform Performance Audit', price: '£150', details: ['Manual review and action report'] })} className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition">Request This Service</button>
-                              </div>
-                           </div>
-                        )}
-                      </>
+                    {/* ✅ FIX 4: Use the new price variables and the formatPrice helper for display. */}
+                    {showAllRedBundle && allSeveritiesAvailable && (
+                        <div className="bg-red-100 border-2 border-red-400 p-6 rounded-lg shadow-lg text-center">
+                            <h3 className="text-2xl font-bold text-red-800">Critical Site Rescue Package</h3>
+                            <p className="text-red-700 mt-2">Your site has critical issues in all three core areas. This complete overhaul will fix all foundational problems.</p>
+                            <div className="my-4">
+                                {typeof totalRedPrice === 'number' && <span className="text-xl line-through text-slate-500">{formatPrice(totalRedPrice)}</span>}
+                                <span className="text-4xl font-bold text-purple-600 ml-4">{formatPrice(discountedRedPrice)}</span>
+                                {typeof totalRedPrice === 'number' && <span className="text-purple-600 font-semibold"> (15% off)</span>}
+                            </div>
+                            <button onClick={() => handleOpenModal({ name: 'Critical Site Rescue', price: discountedRedPrice, details: []})} className="w-auto bg-purple-600 text-white font-bold py-2 px-6 rounded-md hover:bg-purple-700 transition">Request Full Rescue</button>
+                        </div>
                     )}
-                    
-                    {(results.mobile.seo < 100) && (
-                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
-                          <div><h3 className={`font-bold text-lg text-slate-800 flex items-center`}><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${services.seo.color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">{services.seo.problem}</p></div>
-                          <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside">{services.seo.details.map(detail => <li key={detail}>{detail}</li>)}</ul></div>
-                          <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
-                            <h3 className="font-bold text-lg text-slate-800">{services.seo.tier}</h3>
-                            <div className="text-3xl font-bold text-purple-600 my-4">{calculatePrice(services.seo.basePrice)}</div>
-                            <button onClick={() => handleOpenModal({ name: services.seo.tier, price: calculatePrice(services.seo.basePrice), details: services.seo.details })} className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition">Request This Service</button>
-                          </div>
-                       </div>
+                    {showAllAmberBundle && allSeveritiesAvailable && (
+                         <div className="bg-yellow-100 border-2 border-yellow-400 p-6 rounded-lg shadow-lg text-center">
+                            <h3 className="text-2xl font-bold text-yellow-800">Full Optimisation Package</h3>
+                            <p className="text-yellow-700 mt-2">Your site needs improvement across the board. This package will address all issues to get your scores into the green.</p>
+                            <div className="my-4">
+                                {typeof totalAmberPrice === 'number' && <span className="text-xl line-through text-slate-500">{formatPrice(totalAmberPrice)}</span>}
+                                <span className="text-4xl font-bold text-purple-600 ml-4">{formatPrice(discountedAmberPrice)}</span>
+                                {typeof totalAmberPrice === 'number' && <span className="text-purple-600 font-semibold"> (10% off)</span>}
+                            </div>
+                            <button onClick={() => handleOpenModal({ name: 'Full Optimisation Package', price: discountedAmberPrice, details: []})} className="w-auto bg-purple-600 text-white font-bold py-2 px-6 rounded-md hover:bg-purple-700 transition">Request Full Package</button>
+                        </div>
                     )}
-                    {(results.mobile.accessibility < 100) && (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
-                      <div><h3 className={`font-bold text-lg text-slate-800 flex items-center`}><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${services.accessibility.color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">{services.accessibility.problem}</p></div>
-                      <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside">{services.accessibility.details.map(detail => <li key={detail}>{detail}</li>)}</ul></div>
-                      <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
-                        <h3 className="font-bold text-lg text-slate-800">{services.accessibility.tier}</h3>
-                        <div className="text-3xl font-bold text-purple-600 my-4">{calculatePrice(services.accessibility.basePrice)}</div>
-                        <button onClick={() => handleOpenModal({ name: services.accessibility.tier, price: calculatePrice(services.accessibility.basePrice), details: services.accessibility.details })} className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition">Request This Service</button>
-                      </div>
-                   </div>
+                    {showAllGreenBundle && (
+                         <div className="bg-emerald-100 border-2 border-emerald-400 p-6 rounded-lg shadow-lg text-center">
+                            <h3 className="text-2xl font-bold text-emerald-800">Perfectionist Polish Package</h3>
+                            <p className="text-emerald-700 mt-2">Congratulations! Your site is in great shape. This package combines a final SEO and Accessibility tune-up to get you as close to 100 as possible.</p>
+                            <div className="text-4xl font-bold text-purple-600 my-4">£99</div>
+                            <button onClick={() => handleOpenModal({ name: 'Perfectionist Polish', price: 99, details: []})} className="w-auto bg-purple-600 text-white font-bold py-2 px-6 rounded-md hover:bg-purple-700 transition">Request Polish Package</button>
+                        </div>
+                    )}
+
+                    {!showAllRedBundle && !showAllAmberBundle && !showAllGreenBundle && allSeveritiesAvailable && (
+                        <>
+                            {/* ... Individual Service Cards (using formatPrice helper) ... */}
+                            {(perfSeverity.isRed || perfSeverity.isAmber) && (
+                              <>
+                                {results.platform === 'WordPress' ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
+                                        <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${perfSeverity.color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">Your WordPress site has a low performance score, likely due to common issues with images or caching.</p></div>
+                                        <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside"><li>Install & Configure Caching Plugin</li><li>OR Bulk Optimise All Images</li></ul></div>
+                                        <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
+                                            <h3 className="font-bold text-lg text-slate-800">WordPress Quick Win</h3>
+                                            <div className="text-3xl font-bold text-purple-600 my-4">£50</div>
+                                            <button onClick={() => handleOpenModal({ name: 'WordPress Quick Win', price: 50, details: ['Install Caching OR Image Plugin'] })} className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition">Request This Service</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
+                                        <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${perfSeverity.color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">Your {results.platform} site has a low performance score. Best practices for this platform can still make a big difference.</p></div>
+                                        <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside"><li>Manual Image Compression Review</li><li>Slow Widget/App Identification</li><li>Best Practice Action Report</li></ul></div>
+                                        <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
+                                            <h3 className="font-bold text-lg text-slate-800">Platform Performance Audit</h3>
+                                            <div className="text-3xl font-bold text-purple-600 my-4">£150</div>
+                                            <button onClick={() => handleOpenModal({ name: 'Platform Performance Audit', price: 150, details: ['Manual review and action report'] })} className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition">Request This Service</button>
+                                        </div>
+                                    </div>
+                                )}
+                              </>
+                            )}
+                            {(seoSeverity.isRed || seoSeverity.isAmber) && (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
+                                    <div><h3 className={`font-bold text-lg text-slate-800 flex items-center`}><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${seoSeverity.color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">{seoSeverity.problem}</p></div>
+                                    <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside">{['Full SEO Audit', 'Fix All Identified Errors', 'Implement Best Practices', 'Google Search Console Setup'].map(detail => <li key={detail}>{detail}</li>)}</ul></div>
+                                    <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
+                                    <h3 className="font-bold text-lg text-slate-800">{seoSeverity.tier}</h3>
+                                    <div className="text-3xl font-bold text-purple-600 my-4">{formatPrice(calculatePrice(seoSeverity.basePrice))}</div>
+                                    <button onClick={() => handleOpenModal({ name: seoSeverity.tier, price: calculatePrice(seoSeverity.basePrice), details: [] })} className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition">Request This Service</button>
+                                    </div>
+                                </div>
+                            )}
+                            {(accessibilitySeverity.isRed || accessibilitySeverity.isAmber) && (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
+                                    <div><h3 className={`font-bold text-lg text-slate-800 flex items-center`}><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${accessibilitySeverity.color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">{accessibilitySeverity.problem}</p></div>
+                                    <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside">{['Full Accessibility Audit', 'Fix Contrast & Alt Text', 'Ensure Form/Button Labels', 'WCAG Compliance Check'].map(detail => <li key={detail}>{detail}</li>)}</ul></div>
+                                    <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
+                                    <h3 className="font-bold text-lg text-slate-800">{accessibilitySeverity.tier}</h3>
+                                    <div className="text-3xl font-bold text-purple-600 my-4">{formatPrice(calculatePrice(accessibilitySeverity.basePrice))}</div>
+                                    <button onClick={() => handleOpenModal({ name: accessibilitySeverity.tier, price: calculatePrice(accessibilitySeverity.basePrice), details: [] })} className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition">Request This Service</button>
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
                   </div>
                 </div>
@@ -239,11 +306,12 @@ export default function HomePage() {
         </footer>
       </main>
 
+      {/* ... Modal (using formatPrice helper) ... */}
       {isModalOpen && selectedService && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl p-8 max-w-lg w-full">
             <h2 className="text-2xl font-bold text-slate-800">Request: {selectedService.name}</h2>
-            <p className="text-slate-600 mt-2">Price: <span className="font-bold">{selectedService.price}</span></p>
+            <p className="text-slate-600 mt-2">Price: <span className="font-bold">{formatPrice(selectedService.price)}</span></p>
             <form onSubmit={handleFormSubmit} className="mt-6 space-y-4">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-slate-700">Your Name</label>

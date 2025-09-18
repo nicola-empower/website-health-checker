@@ -1,24 +1,15 @@
 // src/app/api/check/route.ts
 import { NextResponse } from 'next/server';
 
-// Define a type for the technology object to avoid using 'any'
-type Technology = {
-  Name: string;
-  Tag: string;
-};
+type Technology = { Name: string; Tag: string; };
 
 export async function POST(request: Request) {
   const { url } = await request.json();
-  
   const googleApiKey = process.env.PAGESPEED_API_KEY;
   const builtWithApiKey = process.env.BUILTWITH_API_KEY;
 
-  if (!url) {
-    return NextResponse.json({ error: 'URL is required' }, { status: 400 });
-  }
-  if (!googleApiKey || !builtWithApiKey) {
-    return NextResponse.json({ error: 'API keys are not configured correctly' }, { status: 500 });
-  }
+  if (!url) { return NextResponse.json({ error: 'URL is required' }, { status: 400 }); }
+  if (!googleApiKey || !builtWithApiKey) { return NextResponse.json({ error: 'API keys are not configured' }, { status: 500 }); }
 
   try {
     const [mobileResponse, desktopResponse, builtWithResponse] = await Promise.all([
@@ -28,7 +19,6 @@ export async function POST(request: Request) {
     ]);
 
     if (!mobileResponse.ok || !desktopResponse.ok || !builtWithResponse.ok) {
-        console.error("An API call failed.");
         throw new Error('Failed to fetch data from one of the APIs.');
     }
 
@@ -60,7 +50,7 @@ export async function POST(request: Request) {
             }
         }
     }
-
+    
     return NextResponse.json({ ...results, platform: detectedPlatform });
 
   } catch (error) {
