@@ -3,13 +3,13 @@
 
 import { useState, Fragment } from 'react';
 import Image from 'next/image';
-// CORRECTED: Importing only the icons that are actually used
 import { WrenchScrewdriverIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 // Type definitions
 type Scores = { performance: number; seo: number; accessibility: number };
 type AnalysisResults = { mobile: Scores; desktop: Scores; finalUrl: string };
 type Service = { name: string; price: number | string; details: string[] };
+type Severity = { tier: string, problem: string, basePrice: number, color: string };
 
 // Helper Components
 const ScoreCircle = ({ score }: { score: number }) => {
@@ -32,15 +32,13 @@ export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   
-  // CORRECTED: Removed unused 'setPlatform' to clear the warning
   const [platform] = useState('WordPress'); 
 
   // Dynamic Pricing and Content Logic
-  const getSeverity = (score: number): {tier: string, problem: string, basePrice: number} => {
-    // CORRECTED: Escaped the apostrophe in 'site's'
-    if (score < 50) return { tier: 'Red Zone Rescue', problem: 'Critical issues found that are likely harming your site&apos;s performance and user experience.', basePrice: 300 };
-    if (score < 90) return { tier: 'Amber Zone Audit', problem: 'Your site&apos;s foundation is good, but is missing key optimisations.', basePrice: 150 };
-    return { tier: 'Green Zone Polish', problem: 'Your site is in great shape! This tune-up will fix the final few issues to achieve a near-perfect score.', basePrice: 75 };
+  const getSeverity = (score: number): Severity => {
+    if (score < 50) return { tier: 'Red Zone Rescue', problem: 'Critical issues found that are likely harming your site&apos;s performance and user experience.', basePrice: 300, color: 'text-red-500' };
+    if (score < 90) return { tier: 'Amber Zone Audit', problem: 'Your site&apos;s foundation is good, but is missing key optimisations.', basePrice: 150, color: 'text-yellow-500' };
+    return { tier: 'Green Zone Polish', problem: 'Your site is in great shape! This tune-up will fix the final few issues to achieve a near-perfect score.', basePrice: 75, color: 'text-emerald-500' };
   };
 
   const calculatePrice = (basePrice: number) => {
@@ -185,7 +183,7 @@ export default function HomePage() {
                   <div className="space-y-8">
                     {(results.mobile.performance < 90) && (
                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
-                          <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><ExclamationTriangleIcon className="h-5 w-5 mr-2 text-yellow-500"/>The Problem</h3><p className="text-sm text-slate-600 mt-2">Your site's performance score is {Math.round(results.mobile.performance)}, which can lead to frustrated visitors and a lower Google ranking.</p></div>
+                          <div><h3 className={`font-bold text-lg text-slate-800 flex items-center`}><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${getSeverity(results.mobile.performance).color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">Your site&apos;s performance score is {Math.round(results.mobile.performance)}, which can lead to frustrated visitors and a lower Google ranking.</p></div>
                           <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside">{services.performance.details.map(detail => <li key={detail}>{detail}</li>)}</ul></div>
                           <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
                             <h3 className="font-bold text-lg text-slate-800">{services.performance.name}</h3>
@@ -196,7 +194,7 @@ export default function HomePage() {
                     )}
                     {(results.mobile.seo < 100) && (
                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
-                          <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><ExclamationTriangleIcon className="h-5 w-5 mr-2 text-yellow-500"/>The Problem</h3><p className="text-sm text-slate-600 mt-2">{services.seo.problem}</p></div>
+                          <div><h3 className={`font-bold text-lg text-slate-800 flex items-center`}><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${services.seo.color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">{services.seo.problem}</p></div>
                           <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside">{services.seo.details.map(detail => <li key={detail}>{detail}</li>)}</ul></div>
                           <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
                             <h3 className="font-bold text-lg text-slate-800">{services.seo.tier}</h3>
@@ -207,7 +205,7 @@ export default function HomePage() {
                     )}
                     {(results.mobile.accessibility < 100) && (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
-                      <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><ExclamationTriangleIcon className="h-5 w-5 mr-2 text-yellow-500"/>The Problem</h3><p className="text-sm text-slate-600 mt-2">{services.accessibility.problem}</p></div>
+                      <div><h3 className={`font-bold text-lg text-slate-800 flex items-center`}><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${services.accessibility.color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">{services.accessibility.problem}</p></div>
                       <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside">{services.accessibility.details.map(detail => <li key={detail}>{detail}</li>)}</ul></div>
                       <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
                         <h3 className="font-bold text-lg text-slate-800">{services.accessibility.tier}</h3>
