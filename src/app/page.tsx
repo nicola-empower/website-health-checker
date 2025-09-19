@@ -1,378 +1,403 @@
 'use client';
 
-import { useState, FormEvent, FC } from 'react';
-import { ChartBarIcon, DevicePhoneMobileIcon, ComputerDesktopIcon, CheckCircleIcon, XCircleIcon, InformationCircleIcon, EnvelopeIcon, UserIcon } from '@heroicons/react/24/outline';
+import { useState, Fragment } from 'react';
+import Image from 'next/image';
+import { WrenchScrewdriverIcon, ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
+// --- TYPE DEFINITIONS ---
+type Scores = { performance: number; seo: number; accessibility: number };
+type AnalysisResults = { mobile: Scores; desktop: Scores; finalUrl: string; };
+type Service = { name: string; price: number | 'Custom Quote'; details: string[] };
+type Severity = { tier: string, problem: string, basePrice: number, color: string, isRed: boolean, isAmber: boolean, isGreen: boolean };
+type FormStatus = 'idle' | 'submitting' | 'success' | 'error';
 
-// --- Reusable UI Components ---
-
-const ServicePlan = ({ title, problem, plan, investment }: { title: string; problem: string[]; plan: string[]; investment: string }) => (
-  <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 w-full">
-    <h3 className="text-2xl font-bold text-teal-400 mb-4">{title}</h3>
-    <div className="grid md:grid-cols-2 gap-6">
-      <div>
-        <h4 className="text-lg font-semibold text-white mb-2">The Problem</h4>
-        <ul className="space-y-2">
-          {problem.map((item, index) => (
-            <li key={index} className="flex items-start">
-              <XCircleIcon className="w-5 h-5 text-red-400 mr-2 mt-1 flex-shrink-0" />
-              <span className="text-gray-300">{item}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div>
-        <h4 className="text-lg font-semibold text-white mb-2">My Job Plan</h4>
-        <ul className="space-y-2">
-          {plan.map((item, index) => (
-            <li key={index} className="flex items-start">
-              <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2 mt-1 flex-shrink-0" />
-              <span className="text-gray-300">{item}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-    <div className="mt-6 pt-6 border-t border-gray-700">
-      <h4 className="text-lg font-semibold text-white mb-2">Your Investment</h4>
-      <p className="text-3xl font-bold text-teal-400">{investment}</p>
-    </div>
-  </div>
-);
-
-const DiyPlan = ({ title, problem, plan, investment }: { title: string; problem: string[]; plan: string[]; investment: string }) => (
-    <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 w-full">
-      <h3 className="text-2xl font-bold text-teal-400 mb-4">{title}</h3>
-      <div className="grid md:grid-cols-1 gap-6">
-        <div>
-          <h4 className="text-lg font-semibold text-white mb-2">Common Issues</h4>
-          <ul className="space-y-2">
-            {problem.map((item, index) => (
-              <li key={index} className="flex items-start">
-                <XCircleIcon className="w-5 h-5 text-red-400 mr-2 mt-1 flex-shrink-0" />
-                <span className="text-gray-300">{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-       <div className="mt-6 pt-6 border-t border-gray-700 grid md:grid-cols-2 gap-6">
-         <div>
-          <h4 className="text-lg font-semibold text-white mb-2">DIY Action Plan</h4>
-           <ul className="space-y-2">
-            {plan.map((item, index) => (
-                <li key={index} className="flex items-start">
-                <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2 mt-1 flex-shrink-0" />
-                <span className="text-gray-300">{item}</span>
-                </li>
-            ))}
-            </ul>
-        </div>
-        <div>
-            <h4 className="text-lg font-semibold text-white mb-2">Need a Hand?</h4>
-            <p className="text-gray-300 mb-4">If you get stuck or want a professional to handle it, I can perform a deep-dive audit and provide a detailed roadmap.</p>
-             <p className="text-3xl font-bold text-teal-400">{investment}</p>
-        </div>
-      </div>
-    </div>
-  );
-
-
-const ScoreCircle = ({ score }: { score: number | null }) => {
-  if (score === null) {
-    return (
-      <div className="w-32 h-32 rounded-full flex items-center justify-center bg-gray-700">
-        <span className="text-gray-400 text-lg">-</span>
-      </div>
-    );
-  }
+// --- HELPER COMPONENTS ---
+const ScoreCircle = ({ score }: { score: number }) => {
   const getScoreColor = (value: number) => {
-    if (value >= 90) return 'text-green-400';
-    if (value >= 50) return 'text-yellow-400';
-    return 'text-red-400';
+    if (value >= 90) return 'text-emerald-500';
+    if (value >= 50) return 'text-yellow-500';
+    return 'text-red-500';
   };
-  const colorClass = getScoreColor(score);
-  return (
-    <div className={`w-32 h-32 rounded-full flex items-center justify-center bg-gray-800 border-4 ${colorClass.replace('text-', 'border-')}`}>
-      <span className={`text-5xl font-bold ${colorClass}`}>{score}</span>
-    </div>
-  );
+  return (<div className={`text-5xl font-bold ${getScoreColor(score)}`}>{Math.round(score)}</div>);
 };
 
-const Loader = () => (
-    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-);
+const formatPrice = (price: number | 'Custom Quote') => {
+  if (price === 'Custom Quote') return 'Custom Quote';
+  return `£${Math.round(price)}`;
+};
 
-
-// --- Main Page Component ---
-
-export default function HealthCheckerPage() {
+// --- MAIN PAGE COMPONENT ---
+export default function HomePage() {
   const [url, setUrl] = useState('');
-  const [platform, setPlatform] = useState('wordpress');
-  const [results, setResults] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [results, setResults] = useState<AnalysisResults | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+ 
+  const [selectedPlatform, setSelectedPlatform] = useState('');
+  const [showActionPlan, setShowActionPlan] = useState(false);
+  const [siteSize, setSiteSize] = useState('small');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formStatus, setFormStatus] = useState({ submitting: false, success: false, error: '' });
-  
-  const analyzeWebsite = async (e: FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setResults(null);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [formStatus, setFormStatus] = useState<FormStatus>('idle');
 
-    if (!url || !url.startsWith('http')) {
-        setError("Please enter a valid URL (e.g., https://www.example.com)");
-        setLoading(false);
-        return;
-    }
+  // --- LOGIC & CALCULATIONS ---
+  const getSeverity = (score: number): Severity => {
+    if (score < 50) return { tier: 'Red Zone Rescue', problem: 'Your score indicates critical issues that are actively harming your site.', basePrice: 300, color: 'text-red-500', isRed: true, isAmber: false, isGreen: false };
+    if (score < 90) return { tier: 'Amber Zone Audit', problem: 'Your score is in the amber zone, indicating key areas for improvement.', basePrice: 150, color: 'text-yellow-500', isRed: false, isAmber: true, isGreen: false };
+    return { tier: 'Green Zone Polish', problem: 'Congratulations! Your site is in great shape. This optional tune-up is for those who want to go from great to perfect.', basePrice: 75, color: 'text-emerald-500', isRed: false, isAmber: false, isGreen: true };
+  };
+
+  const calculatePrice = (basePrice: number): number | 'Custom Quote' => {
+    if (siteSize === 'large') return "Custom Quote";
+    const sizeMultiplier = siteSize === 'medium' ? 1.5 : 1;
+    const platformMultiplier = (selectedPlatform === 'WordPress') ? 1 : 0.75;
+    return basePrice * sizeMultiplier * platformMultiplier;
+  };
+ 
+  // --- HANDLERS ---
+  const handleOpenModal = (service: Service) => {
+    setSelectedService(service);
+    setFormStatus('idle');
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+      setIsModalOpen(false);
+      setSelectedService(null);
+  }
+
+  const handleAnalyzerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setResults(null);
+    setError('');
+    setShowActionPlan(false);
+    setSelectedPlatform('');
+   
+    const cleanedUrl = url.trim().replace(/^(https?:\/\/)?/, '');
+    const fullUrl = `https://${cleanedUrl}`;
 
     try {
-      const response = await fetch(`/api/pagespeed`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url }),
+      const response = await fetch('/api/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: fullUrl }),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to analyze the website.');
+        throw new Error(errorData.error || 'Something went wrong');
       }
-      
-      const data = await response.json();
+      const data: AnalysisResults = await response.json();
       setResults(data);
-      setTimeout(() => setIsModalOpen(true), 1000); // Open modal after a short delay
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unknown error occurred.');
+      }
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleFormSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleFormspreeSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setFormStatus({ submitting: true, success: false, error: '' });
+    setFormStatus('submitting');
+    const form = e.currentTarget;
+    const data = new FormData(form);
 
-    const formData = new FormData(e.target as HTMLFormElement);
-    
     try {
-        const response = await fetch('https://formspree.io/f/movngvvy', { // IMPORTANT: Replace with your Formspree form ID
+        const response = await fetch(form.action, {
             method: 'POST',
-            body: formData,
-            headers: {
-                'Accept': 'application/json'
-            }
+            body: data,
+            headers: { 'Accept': 'application/json' }
         });
 
         if (response.ok) {
-            setFormStatus({ submitting: false, success: true, error: '' });
+            setFormStatus('success');
         } else {
-            const data = await response.json();
-            if (Object.hasOwn(data, 'errors')) {
-                throw new Error(data["errors"].map((error: any) => error["message"]).join(", "));
-            } else {
-                throw new Error('Oops! There was a problem submitting your form');
-            }
+            setFormStatus('error');
         }
-    } catch (error: any) {
-        setFormStatus({ submitting: false, success: false, error: error.message });
+    } catch (error) {
+        setFormStatus('error');
     }
   };
 
+  // --- DERIVED STATE & HELPER VARIABLES ---
+  const perfSeverity = results ? getSeverity(results.mobile.performance) : null;
+  const seoSeverity = results ? getSeverity(results.mobile.seo) : null;
+  const accessibilitySeverity = results ? getSeverity(results.mobile.accessibility) : null;
 
-  const renderActionPlan = () => {
-    if (!results) return null;
+  const showAllRedBundle = perfSeverity?.isRed && seoSeverity?.isRed && accessibilitySeverity?.isRed;
+  const showAllAmberBundle = perfSeverity?.isAmber && seoSeverity?.isAmber && accessibilitySeverity?.isAmber;
+  const showAllGreenBundle = seoSeverity?.isGreen && accessibilitySeverity?.isGreen;
+ 
+  const allSeveritiesAvailable = perfSeverity && seoSeverity && accessibilitySeverity;
+ 
+  const totalRedBasePrice = allSeveritiesAvailable ? (perfSeverity.basePrice + seoSeverity.basePrice + accessibilitySeverity.basePrice) : 0;
+  const totalRedPrice = calculatePrice(totalRedBasePrice);
+  const discountedRedPrice = typeof totalRedPrice === 'number' ? totalRedPrice * 0.85 : 'Custom Quote';
 
-    const avgPerf = (results.mobile.performance + results.desktop.performance) / 2;
-    
-    // WordPress Plans
-    if (platform === 'wordpress') {
-        if (avgPerf >= 50 && avgPerf < 90) {
-            return <ServicePlan 
-                title="WordPress Quick Win"
-                problem={["Slow loading times are frustrating visitors.", "Unoptimized images are bloating your page.", "Lack of caching is making your server work too hard."]}
-                plan={["Install and configure a premium caching plugin.", "Optimize all existing images AND set up automatic optimization for new uploads.", "Basic database cleanup to remove unnecessary clutter."]}
-                investment="£250"
-            />;
-        }
-        if (avgPerf < 50) {
-             return <ServicePlan 
-                title="WordPress Performance Deep Dive"
-                problem={["Your site is critically slow, likely losing customers and search ranking.", "Code (CSS/JS) is not optimized, blocking page render.", "Your server is struggling to keep up with requests."]}
-                plan={["Everything in the 'Quick Win' package.", "Advanced code minification and deferral of non-critical scripts.", "In-depth database optimization.", "A full report on further potential improvements."]}
-                investment="Starting at £600 (Custom Quote)"
-            />;
-        }
-        return (
-            <div className="text-center bg-gray-800 p-8 rounded-lg">
-                <CheckCircleIcon className="w-16 h-16 text-green-400 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-white">Great job!</h3>
-                <p className="text-gray-300">Your WordPress site is already performing well. Keep up the good work!</p>
-            </div>
-        );
-    }
+  const totalAmberBasePrice = allSeveritiesAvailable ? (perfSeverity.basePrice + seoSeverity.basePrice + accessibilitySeverity.basePrice) : 0;
+  const totalAmberPrice = calculatePrice(totalAmberBasePrice);
+  const discountedAmberPrice = typeof totalAmberPrice === 'number' ? totalAmberPrice * 0.90 : 'Custom Quote';
 
-    // Plans for other platforms
-    if (['shopify', 'wix', 'squarespace'].includes(platform)) {
-        if (avgPerf < 90) {
-            return <DiyPlan
-                title={`${platform.charAt(0).toUpperCase() + platform.slice(1)} Performance Plan`}
-                problem={[`Unoptimized images are the #1 cause of slow ${platform} sites.`, "Too many apps or custom scripts can bog down performance.", "Large videos or custom fonts can increase load times."]}
-                plan={["Compress all images before uploading them.", "Regularly review and remove unused apps.", "Use platform-native features wherever possible instead of third-party code."]}
-                investment="Platform Audit from £150"
-            />
-        }
-         return (
-            <div className="text-center bg-gray-800 p-8 rounded-lg">
-                <CheckCircleIcon className="w-16 h-16 text-green-400 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-white">Looking Good!</h3>
-                <p className="text-gray-300">{`Your ${platform} site is performing well. Continue to follow best practices for content and images.`}</p>
-            </div>
-        );
-    }
-    
-    return null;
-  };
-
-
+  // --- RENDER ---
   return (
-    <div className="bg-gray-900 min-h-screen text-white font-sans">
-      <main className="container mx-auto px-4 py-12">
-        <div className="text-center max-w-3xl mx-auto">
-          <ChartBarIcon className="w-16 h-16 mx-auto text-teal-400 mb-4" />
-          <h1 className="text-5xl font-extrabold mb-4 tracking-tight">Website Health Checker</h1>
-          <p className="text-lg text-gray-400">
-            Enter your website URL to get an instant analysis of its performance, SEO, and accessibility, plus a tailored action plan to boost your scores.
-          </p>
-        </div>
-
-        <div className="max-w-2xl mx-auto my-10">
-          <form onSubmit={analyzeWebsite} className="bg-gray-800 p-6 rounded-lg shadow-lg flex flex-col sm:flex-row gap-4">
-            <input
-              type="text"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://www.yourwebsite.com"
-              className="flex-grow bg-gray-700 text-white rounded-md px-4 py-3 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              required
-            />
-             <select 
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value)}
-                className="bg-gray-700 text-white rounded-md px-4 py-3 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              >
-                <option value="wordpress">WordPress</option>
-                <option value="shopify">Shopify</option>
-                <option value="wix">Wix</option>
-                <option value="squarespace">Squarespace</option>
-            </select>
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-6 rounded-md transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center"
-            >
-              {loading ? <><Loader /> <span className="ml-2">Analyzing...</span></> : 'Analyze'}
-            </button>
-          </form>
-           {error && <p className="text-red-400 mt-4 text-center">{error}</p>}
-        </div>
-
-        {results && (
-          <div id="results" className="space-y-12">
-            {/* --- Score Display --- */}
-            <div className="bg-gray-800/50 backdrop-blur-sm p-8 rounded-lg border border-gray-700">
-              <h2 className="text-3xl font-bold text-center mb-8">Performance Scores</h2>
-              <div className="flex flex-col md:flex-row justify-around items-center gap-8">
-                <div className="text-center">
-                  <h3 className="flex items-center justify-center gap-2 text-2xl font-semibold mb-4"><DevicePhoneMobileIcon className="w-6 h-6"/> Mobile</h3>
-                  <ScoreCircle score={results.mobile.performance} />
+    <Fragment>
+      <main className="min-h-screen bg-slate-50 flex flex-col items-center p-4 sm:p-8">
+        <div className="w-full max-w-4xl mx-auto">
+            <div className="mb-8 text-center">
+                <a href="https://empowervaservices.co.uk" target="_blank" rel="noopener noreferrer" className="inline-block transition-transform hover:scale-105">
+                    <Image
+                        src="/logo.png"
+                        alt="Empower Virtual Assistant Services Logo"
+                        width={200}
+                        height={50}
+                        priority
+                    />
+                </a>
+            </div>
+            <div className="text-center">
+              <h1 className="text-4xl sm:text-5xl font-bold text-slate-800">Website Health Checker</h1>
+              <p className="mt-4 text-lg text-slate-600">
+                Enter your website URL to get a free report on its performance, SEO, and more.
+              </p>
+            </div>
+            <form onSubmit={handleAnalyzerSubmit} className="mt-8">
+                <div className="flex rounded-md shadow-sm">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
+                        https://
+                    </span>
+                    <input
+                        type="text"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        placeholder="yourwebsite.co.uk"
+                        required
+                        className="flex-grow p-3 border border-gray-300 text-gray-900 rounded-none rounded-r-md focus:ring-2 focus:ring-[#8c3aaa] focus:border-[#8c3aaa] transition"
+                    />
                 </div>
-                <div className="text-center">
-                  <h3 className="flex items-center justify-center gap-2 text-2xl font-semibold mb-4"><ComputerDesktopIcon className="w-6 h-6"/> Desktop</h3>
-                  <ScoreCircle score={results.desktop.performance} />
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full mt-4 bg-[#8c3aaa] text-white font-bold py-3 px-6 rounded-md hover:bg-[#7a3296] transition disabled:bg-slate-400 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Analysing...' : 'Analyse Website'}
+              </button>
+            </form>
+
+            {error && <div className="mt-6 p-4 bg-red-100 text-red-700 rounded-md">{error}</div>}
+            {isLoading && <div className="mt-8 text-center text-slate-600">Analysing your site... this can take up to 30 seconds!</div>}
+
+            {results && (
+              <div className="mt-10">
+                <div className="bg-white p-6 sm:p-8 rounded-lg shadow-xl border">
+                    <h2 className="text-2xl font-bold text-slate-800 text-center">Report for: <a href={results.finalUrl} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">{results.finalUrl}</a></h2>
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="bg-slate-50 p-6 rounded-lg">
+                            <h3 className="text-xl font-bold text-center text-slate-700">Mobile</h3>
+                            <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+                                <div><ScoreCircle score={results.mobile.performance} /><p className="text-sm text-slate-500 mt-2">Performance</p></div>
+                                <div><ScoreCircle score={results.mobile.seo} /><p className="text-sm text-slate-500 mt-2">SEO</p></div>
+                                <div><ScoreCircle score={results.mobile.accessibility} /><p className="text-sm text-slate-500 mt-2">Accessibility</p></div>
+                            </div>
+                        </div>
+                        <div className="bg-slate-50 p-6 rounded-lg">
+                            <h3 className="text-xl font-bold text-center text-slate-700">Desktop</h3>
+                            <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+                                <div><ScoreCircle score={results.desktop.performance} /><p className="text-sm text-slate-500 mt-2">Performance</p></div>
+                                <div><ScoreCircle score={results.desktop.seo} /><p className="text-sm text-slate-500 mt-2">SEO</p></div>
+                                <div><ScoreCircle score={results.desktop.accessibility} /><p className="text-sm text-slate-500 mt-2">Accessibility</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-12 text-center">
+                  <h2 className="text-3xl font-bold text-slate-800">Your Custom Action Plan</h2>
+                 
+                  {!showActionPlan ? (
+                    <div className="mt-6 bg-white p-6 rounded-lg shadow-lg border">
+                      <label htmlFor="platform" className="block text-lg font-semibold text-slate-700">To create your tailored plan, what is your website built with?</label>
+                      <select
+                        id="platform"
+                        value={selectedPlatform}
+                        onChange={(e) => setSelectedPlatform(e.target.value)}
+                        className="mt-4 p-3 border rounded-md text-gray-900 w-full max-w-xs"
+                      >
+                        <option value="" disabled>Select a platform...</option>
+                        <option value="WordPress">WordPress</option>
+                        <option value="Squarespace">Squarespace</option>
+                        <option value="Wix">Wix</option>
+                        <option value="Other">Other / I&apos;m not sure</option>
+                      </select>
+                      <button
+                        onClick={() => setShowActionPlan(true)}
+                        disabled={!selectedPlatform}
+                        className="mt-4 block mx-auto bg-purple-600 text-white font-bold py-3 px-8 rounded-md hover:bg-purple-700 transition disabled:bg-slate-400 disabled:cursor-not-allowed"
+                      >
+                        Create My Action Plan
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-slate-600 mt-2">Here are tailored services based on your results. Prices are estimated based on your site size.</p>
+                      <div className="text-center my-6">
+                        <label htmlFor="siteSize" className="mr-2 font-semibold text-slate-700">Estimate your site size:</label>
+                        <select id="siteSize" value={siteSize} onChange={(e) => setSiteSize(e.target.value)} className="p-2 border rounded-md text-gray-900">
+                          <option value="small">Small (1-10 pages)</option>
+                          <option value="medium">Medium (11-50 pages)</option>
+                          <option value="large">Large (50+ pages)</option>
+                        </select>
+                      </div>
+                     
+                      <div className="space-y-8 text-left">
+                        {showAllRedBundle && allSeveritiesAvailable && (
+                            <div className="bg-red-100 border-2 border-red-400 p-6 rounded-lg shadow-lg text-center">
+                                <h3 className="text-2xl font-bold text-red-800">Critical Site Rescue Package</h3>
+                                <p className="text-red-700 mt-2">Your site has critical issues in all three core areas. This complete overhaul will fix all foundational problems.</p>
+                                <div className="my-4">
+                                    {typeof totalRedPrice === 'number' && <span className="text-xl line-through text-slate-500">{formatPrice(totalRedPrice)}</span>}
+                                    <span className="text-4xl font-bold text-purple-600 ml-4">{formatPrice(discountedRedPrice)}</span>
+                                    {typeof totalRedPrice === 'number' && <span className="text-purple-600 font-semibold"> (15% off)</span>}
+                                </div>
+                                <button onClick={() => handleOpenModal({ name: 'Critical Site Rescue', price: discountedRedPrice, details: []})} className="w-auto bg-purple-600 text-white font-bold py-2 px-6 rounded-md hover:bg-purple-700 transition">Request Full Rescue</button>
+                            </div>
+                        )}
+                        {showAllAmberBundle && allSeveritiesAvailable && (
+                            <div className="bg-yellow-100 border-2 border-yellow-400 p-6 rounded-lg shadow-lg text-center">
+                                <h3 className="text-2xl font-bold text-yellow-800">Full Optimisation Package</h3>
+                                <p className="text-yellow-700 mt-2">Your site needs improvement across the board. This package will address all issues to get your scores into the green.</p>
+                                <div className="my-4">
+                                    {typeof totalAmberPrice === 'number' && <span className="text-xl line-through text-slate-500">{formatPrice(totalAmberPrice)}</span>}
+                                    <span className="text-4xl font-bold text-purple-600 ml-4">{formatPrice(discountedAmberPrice)}</span>
+                                    {typeof totalAmberPrice === 'number' && <span className="text-purple-600 font-semibold"> (10% off)</span>}
+                                </div>
+                                <button onClick={() => handleOpenModal({ name: 'Full Optimisation Package', price: discountedAmberPrice, details: []})} className="w-auto bg-purple-600 text-white font-bold py-2 px-6 rounded-md hover:bg-purple-700 transition">Request Full Package</button>
+                            </div>
+                        )}
+                        {showAllGreenBundle && seoSeverity?.isGreen && accessibilitySeverity?.isGreen && (
+                            <div className="bg-emerald-100 border-2 border-emerald-400 p-6 rounded-lg shadow-lg text-center">
+                                <h3 className="text-2xl font-bold text-emerald-800">Perfectionist Polish Package</h3>
+                                <p className="text-emerald-700 mt-2">Congratulations! Your site is in great shape. This package combines a final SEO and Accessibility tune-up to get you as close to 100 as possible.</p>
+                                <div className="text-4xl font-bold text-purple-600 my-4">£99</div>
+                                <button onClick={() => handleOpenModal({ name: 'Perfectionist Polish', price: 99, details: []})} className="w-auto bg-purple-600 text-white font-bold py-2 px-6 rounded-md hover:bg-purple-700 transition">Request Polish Package</button>
+                            </div>
+                        )}
+
+                        {!showAllRedBundle && !showAllAmberBundle && allSeveritiesAvailable &&(
+                            <>
+                                {(perfSeverity.isRed || perfSeverity.isAmber) && (
+                                    <>
+                                        {selectedPlatform === 'WordPress' ? (
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
+                                                <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${perfSeverity.color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">Your WordPress site has a low performance score, likely due to common issues with images or caching.</p></div>
+                                                <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside"><li>Install & Configure Caching Plugin</li><li>Bulk Optimise All Images</li></ul></div>
+                                                <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
+                                                <h3 className="font-bold text-lg text-slate-800">WordPress Quick Win</h3>
+                                                <div className="text-3xl font-bold text-purple-600 my-4">£50</div>
+                                                <button onClick={() => handleOpenModal({ name: 'WordPress Quick Win', price: 50, details: ['Install Caching AND Image Plugin'] })} className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition">Request This Service</button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
+                                                <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${perfSeverity.color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">Your {selectedPlatform} site has a low performance score. Best practices for this platform can still make a big difference.</p></div>
+                                                <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside"><li>Manual Image Compression Review</li><li>Slow Widget/App Identification</li><li>Best Practice Action Report</li></ul></div>
+                                                <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
+                                                <h3 className="font-bold text-lg text-slate-800">Platform Performance Audit</h3>
+                                                <div className="text-3xl font-bold text-purple-600 my-4">£150</div>
+                                                <button onClick={() => handleOpenModal({ name: 'Platform Performance Audit', price: 150, details: ['Manual review and action report'] })} className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition">Request This Service</button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                               
+                                {(!showAllGreenBundle && (seoSeverity.isRed || seoSeverity.isAmber)) && (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
+                                        <div><h3 className={`font-bold text-lg text-slate-800 flex items-center`}><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${seoSeverity.color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">{seoSeverity.problem}</p></div>
+                                        <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside">{['Full SEO Audit', 'Fix All Identified Errors', 'Implement Best Practices', 'Google Search Console Setup'].map(detail => <li key={detail}>{detail}</li>)}</ul></div>
+                                        <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
+                                        <h3 className="font-bold text-lg text-slate-800">{seoSeverity.tier}</h3>
+                                        <div className="text-3xl font-bold text-purple-600 my-4">{formatPrice(calculatePrice(seoSeverity.basePrice))}</div>
+                                        <button onClick={() => handleOpenModal({ name: seoSeverity.tier, price: calculatePrice(seoSeverity.basePrice), details: [] })} className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition">Request This Service</button>
+                                        </div>
+                                    </div>
+                                )}
+                                {(!showAllGreenBundle && (accessibilitySeverity.isRed || accessibilitySeverity.isAmber)) && (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-lg shadow-lg border">
+                                        <div><h3 className={`font-bold text-lg text-slate-800 flex items-center`}><ExclamationTriangleIcon className={`h-5 w-5 mr-2 ${accessibilitySeverity.color}`}/>The Problem</h3><p className="text-sm text-slate-600 mt-2">{accessibilitySeverity.problem}</p></div>
+                                        <div><h3 className="font-bold text-lg text-slate-800 flex items-center"><WrenchScrewdriverIcon className="h-5 w-5 mr-2 text-slate-500"/>My Job Plan</h3><ul className="text-sm text-slate-600 mt-2 list-disc list-inside">{['Full Accessibility Audit', 'Fix Contrast & Alt Text', 'Ensure Form/Button Labels', 'WCAG Compliance Check'].map(detail => <li key={detail}>{detail}</li>)}</ul></div>
+                                        <div className="text-center bg-slate-50 p-4 rounded-md flex flex-col justify-center">
+                                        <h3 className="font-bold text-lg text-slate-800">{accessibilitySeverity.tier}</h3>
+                                        <div className="text-3xl font-bold text-purple-600 my-4">{formatPrice(calculatePrice(accessibilitySeverity.basePrice))}</div>
+                                        <button onClick={() => handleOpenModal({ name: accessibilitySeverity.tier, price: calculatePrice(accessibilitySeverity.basePrice), details: [] })} className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition">Request This Service</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-               <div className="mt-8 text-center text-gray-400">
-                 <p>Scores are provided by Google PageSpeed Insights.</p>
-                 <a href={results.finalUrl} target="_blank" rel="noopener noreferrer" className="text-teal-400 hover:underline">View the full Google report</a>
-               </div>
-            </div>
+            )}
+        </div>
 
-            {/* --- Action Plan --- */}
-            <div className="text-center">
-                 <h2 className="text-3xl font-bold mb-6">Your Action Plan</h2>
-                 <div className="max-w-4xl mx-auto">
-                    {renderActionPlan()}
-                 </div>
-            </div>
-          </div>
-        )}
+        <footer className="w-full max-w-4xl mx-auto mt-12 pt-8 border-t text-center text-sm text-slate-500">
+          <p>&copy; {new Date().getFullYear()} Empower Virtual Assistant Services. All rights reserved.</p>
+          <p>A custom tool built by Nicola Berry.</p>
+           <p className="mt-2 text-xs">Disclaimer: Performance scores can fluctuate based on server conditions at the time of the test. The goal is to improve your score zone (e.g., from Red to Green) rather than focusing on a specific number.</p>
+        </footer>
       </main>
 
-       <footer className="text-center py-8 mt-12 border-t border-gray-800">
-            <p className="text-gray-500">&copy; 2024 Your Company Name. All rights reserved.</p>
-            <div className="max-w-3xl mx-auto mt-4 px-4">
-                 <p className="text-sm text-gray-600 flex items-start justify-center">
-                     <InformationCircleIcon className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0"/> 
-                     <span>
-                         **Disclaimer:** Website performance scores can fluctuate slightly between tests. This is normal and can be caused by temporary server load, network conditions, or other transient factors. The action plan provided is based on the results at the time of testing.
-                     </span>
-                </p>
-            </div>
-       </footer>
-
-
-        {/* --- Modal for PDF Request --- */}
-        {isModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50" onClick={() => setIsModalOpen(false)}>
-                <div className="bg-gray-800 rounded-lg shadow-xl p-8 max-w-lg w-full relative" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button>
-                    
-                    {!formStatus.success ? (
-                         <>
-                            <h2 className="text-2xl font-bold text-teal-400 mb-4">Like this report?</h2>
-                            <p className="text-gray-300 mb-6">Enter your details below, and I'll send a full PDF copy of your results and action plan straight to your inbox.</p>
-                            
-                            <form onSubmit={handleFormSubmit}>
-                                <input type="hidden" name="url" value={url} />
-                                <input type="hidden" name="platform" value={platform} />
-                                <input type="hidden" name="mobile_score" value={results?.mobile?.performance} />
-                                <input type="hidden" name="desktop_score" value={results?.desktop?.performance} />
-
-                                <div className="space-y-4">
-                                    <div className="relative">
-                                        <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                                        <input type="text" name="name" placeholder="Your Name" required className="w-full bg-gray-700 text-gray-200 rounded-md py-3 pl-10 pr-4 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                                    </div>
-                                    <div className="relative">
-                                        <EnvelopeIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                                        <input type="email" name="email" placeholder="your@email.com" required className="w-full bg-gray-700 text-gray-200 rounded-md py-3 pl-10 pr-4 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                                    </div>
-                                </div>
-                                <button type="submit" disabled={formStatus.submitting} className="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-6 rounded-md mt-6 transition-colors disabled:bg-gray-500 flex items-center justify-center">
-                                    {formStatus.submitting ? <><Loader /> <span className="ml-2">Sending...</span></> : 'Send Me The PDF'}
-                                </button>
-                                {formStatus.error && <p className="text-red-400 mt-2 text-sm">{formStatus.error}</p>}
-                            </form>
-                         </>
-                    ) : (
-                        <div className="text-center">
-                            <CheckCircleIcon className="w-16 h-16 text-green-400 mx-auto mb-4" />
-                            <h2 className="text-2xl font-bold text-white">Thank You!</h2>
-                            <p className="text-gray-300">Your report is on its way to your inbox. Please check your spam folder if you don't see it in the next few minutes.</p>
-                            <button onClick={() => setIsModalOpen(false)} className="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-md mt-6 transition-colors">
-                                Close
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-        )}
-
-    </div>
+      {isModalOpen && selectedService && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl p-8 max-w-lg w-full">
+            {formStatus === 'success' ? (
+                 <div className="text-center">
+                    <CheckCircleIcon className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-slate-800">Thank You!</h2>
+                    <p className="text-slate-600 mt-2">Your request has been sent successfully. I will be in touch shortly.</p>
+                    <button onClick={handleCloseModal} className="mt-6 px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700">Close</button>
+                 </div>
+            ) : (
+                <form onSubmit={handleFormspreeSubmit} action="https://formspree.io/f/movngvvy" method="POST" className="space-y-4">
+                  <h2 className="text-2xl font-bold text-slate-800">Request: {selectedService.name}</h2>
+                  <p className="text-slate-600">Price: <span className="font-bold">{formatPrice(selectedService.price)}</span></p>
+                  <hr/>
+                  <div>
+                      <label htmlFor="name" className="block text-sm font-medium text-slate-700">Your Name</label>
+                      <input type="text" id="name" name="name" required className="mt-1 block w-full p-2 border border-slate-300 rounded-md shadow-sm text-gray-900"/>
+                  </div>
+                  <div>
+                      <label htmlFor="email" className="block text-sm font-medium text-slate-700">Your Email</label>
+                      <input type="email" id="email" name="email" required className="mt-1 block w-full p-2 border border-slate-300 rounded-md shadow-sm text-gray-900"/>
+                  </div>
+                 
+                  <input type="hidden" name="service_requested" value={`${selectedService?.name} - ${formatPrice(selectedService?.price || 0)}`} />
+                  <input type="hidden" name="website_tested" value={results?.finalUrl} />
+                  <input type="hidden" name="platform" value={selectedPlatform} />
+                  <input type="hidden" name="site_size" value={siteSize} />
+                  <input type="hidden" name="mobile_performance_score" value={Math.round(results?.mobile.performance || 0)} />
+                  <input type="hidden" name="mobile_seo_score" value={Math.round(results?.mobile.seo || 0)} />
+                  <input type="hidden" name="mobile_accessibility_score" value={Math.round(results?.mobile.accessibility || 0)} />
+                 
+                  <div className="flex justify-end space-x-4 pt-4">
+                      <button type="button" onClick={handleCloseModal} className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200">Cancel</button>
+                      <button type="submit" disabled={formStatus === 'submitting'} className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-slate-400">
+                          {formStatus === 'submitting' ? 'Sending...' : 'Send Request'}
+                      </button>
+                  </div>
+                   {formStatus === 'error' && <p className="text-red-600 text-sm text-right mt-2">Something went wrong. Please try again.</p>}
+                </form>
+            )}
+          </div>
+        </div>
+      )}
+    </Fragment>
   );
 }
 
