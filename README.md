@@ -2,6 +2,8 @@
 
 A powerful, user-friendly tool designed to analyse website performance, SEO, and accessibility. Built with Next.js and powered by the Google PageSpeed Insights API, this application provides actionable insights and tailored service packages to help website owners improve their digital presence.
 
+<img width="2053" height="1322" alt="image" src="https://github.com/user-attachments/assets/5e1f506a-f61e-4dd4-a39c-0e28499e172b" />
+
 https://website-health-checker.vercel.app/
 
 ## Features
